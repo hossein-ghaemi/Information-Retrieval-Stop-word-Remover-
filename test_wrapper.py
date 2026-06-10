@@ -58,7 +58,7 @@ def remove_stopwords_by_frequency(doc, collection: list[Document], common_freque
 
 
 def load_documents_from_url(url: str, author: str, origin: str, start_line: int, end_line: int,
-                            search_pattern: Pattern[str]) -> list[Document]:
+                            search_pattern: Pattern[str] = r'([^\n]+)\n\n(.*?)(?=\n{5}(?=[^\n]+\n\n)|$)') -> list[Document]:
     """
     Download a text from the given URL, extract stories/chapters and return them as Document objects.
 

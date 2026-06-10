@@ -29,4 +29,4 @@ class Document(object):
         return self._stemmed_terms
     
     def filtered_stemmed_terms(self):
-        return self.filtered_stemmed_terms
+        return self._filtered_stemmed_terms
