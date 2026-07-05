@@ -1,4 +1,4 @@
- # Contains a unified class definition for a document.
+# Contains a unified class definition for a document.
 # The implementation of this class may be altered, but the original public attributes/methods are accessible.
 # E. g. filtered_terms() may be changed to use to online filtering.
 
@@ -24,9 +24,9 @@ class Document(object):
 
     def filtered_terms(self):
         return self._filtered_terms
-    
+
     def stemmed_terms(self):
         return self._stemmed_terms
-    
+
     def filtered_stemmed_terms(self):
         return self._filtered_stemmed_terms

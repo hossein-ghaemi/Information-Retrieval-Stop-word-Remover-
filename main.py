@@ -4,8 +4,12 @@ import os
 from test_wrapper import (
     load_documents_from_url,
     linear_boolean_search,
+    stem_term,
+    vector_space_search,
+    load_ground_truth,
+    precision_recall,
 )
-from my_module import remove_stop_words
+from my_module import remove_stop_words, relevant_docs_for_query
 def load_stop_words(filename=os.path.join("public_tests", "englishST.txt")):
     with open(filename, "r", encoding="utf-8") as f:
         return {line.strip().lower() for line in f if line.strip()}
@@ -20,6 +24,8 @@ def print_menu():
     print("3. Apply stopword removal")
     print("4. Show documents")
     print("5. Export filtered documents to file")
+    print("6. Preview stemming")
+    print("7. Load ground truth file")
     print("0. Exit")
     print("=" * 50)
 
@@ -60,30 +66,86 @@ def load_collection_ui():
         return []
 
 
-def search_ui(collection):
+def search_ui(collection, ground_truth=None):
     if not collection:
         print("No collection loaded.")
         return
 
-    term = input("Search term: ")
+    term = input("Search term(s), space-separated: ")
 
-    use_filtered = input("Search filtered terms? (y/n): ").lower() == "y"
+    use_filtered = input("Use stopword removal? (y/n): ").lower() == "y"
+    use_stemming = input("Use stemming? (y/n): ").lower() == "y"
+    model = input("Search model - (b)oolean or (v)ector space: ").strip().lower()
 
-    results = linear_boolean_search(term, collection, stopword_filtered=use_filtered)
+    matched_docs = []
 
-    matches = 0
-
-    for score, doc in results:
-        if score == 1:
-            matches += 1
+    if model == "v":
+        results = vector_space_search(term, collection, stopword_filtered=use_filtered,
+                                      stemmed=use_stemming)
+        for score, doc in results:
+            matched_docs.append(doc)
             print("\n----------------------------")
+            print("Score:", round(score, 4))
             print("ID:", doc.document_id)
             print("Title:", doc.title)
             print("Author:", doc.author)
             print("Preview:", doc.raw_text[:100])
             print("----------------------------")
+        print(f"\nMatching documents: {len(matched_docs)}")
+    else:
+        results = linear_boolean_search(term, collection, stopword_filtered=use_filtered,
+                                        stemmed=use_stemming)
+        for score, doc in results:
+            if score == 1:
+                matched_docs.append(doc)
+                print("\n----------------------------")
+                print("ID:", doc.document_id)
+                print("Title:", doc.title)
+                print("Author:", doc.author)
+                print("Preview:", doc.raw_text[:100])
+                print("----------------------------")
+        print(f"\nMatching documents: {len(matched_docs)}")
 
-    print(f"\nMatching documents: {matches}")
+    if ground_truth:
+        relevant = relevant_docs_for_query(term, ground_truth)
+        if relevant is None:
+            print("\n(No ground truth entry for this query term - precision/recall unavailable.)")
+        else:
+            retrieved_ids = {doc.document_id for doc in matched_docs}
+            precision, recall = precision_recall(retrieved_ids, relevant)
+            print(f"\nPrecision: {precision:.3f}   Recall: {recall:.3f}")
+    else:
+        print("\n(No ground truth loaded - precision/recall not shown. Use menu option 7.)")
+
+
+def stemming_preview_ui(collection):
+    """
+    Note: stemming is always computed live inside the search functions
+    (stemmed=True) - this menu option just lets you preview what a term
+    stems to, it does not need to be run before searching with stemming.
+    """
+    if not collection:
+        print("No collection loaded")
+        return
+
+    word = input("Enter a term to see its stem: ")
+    print(f"'{word}' -> '{stem_term(word)}'")
+
+    sample = collection[0].terms[:10]
+    print(f"\nFirst 10 terms of '{collection[0].title}':")
+    for t in sample:
+        print(f"  {t:20} -> {stem_term(t)}")
+
+
+def load_ground_truth_ui():
+    filename = input("Ground truth filename (e.g. ground_truth.txt): ")
+    try:
+        gt = load_ground_truth(filename)
+        print(f"Loaded ground truth for {len(gt)} term(s).")
+        return gt
+    except Exception as e:
+        print("Error while loading ground truth:", e)
+        return None
 
 
 def stopword_removal_ui(collection):
@@ -146,6 +208,7 @@ def export_filtered_documents(collection):
 
 def main():
     collection = []
+    ground_truth = None
 
     while True:
         print_menu()
@@ -155,7 +218,7 @@ def main():
             collection = load_collection_ui()
 
         elif choice == "2":
-            search_ui(collection)
+            search_ui(collection, ground_truth)
 
         elif choice == "3":
             stopword_removal_ui(collection)
@@ -165,6 +228,12 @@ def main():
 
         elif choice == "5":
             export_filtered_documents(collection)
+
+        elif choice == "6":
+            stemming_preview_ui(collection)
+
+        elif choice == "7":
+            ground_truth = load_ground_truth_ui()
 
         elif choice == "0":
             print("Goodbye.")
